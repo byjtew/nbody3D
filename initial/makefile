@@ -6,6 +6,9 @@ nbody.g: nbody.c
 nbody.i: nbody.c
 	icc -xhost -Ofast -qopt-report $< -o $@ -qmkl -qopenmp
 
+run_nbody.g: nbody.g
+	taskset -c 3 ./nbody.g
+
 clean:
 	rm -Rf *~ nbody.g nbody.i *.optrpt
 
