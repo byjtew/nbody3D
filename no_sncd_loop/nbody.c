@@ -9,8 +9,6 @@ typedef float f32;
 typedef double f64;
 typedef unsigned long long u64;
 
-#define softening 1e-20
-
 //
 typedef struct particles_s {
     f32 *x, *y, *z;
@@ -39,7 +37,7 @@ void init(particles_t p, u64 n) {
 
 //
 void move_particles(particles_t p, const f32 dt, u64 n) {
-    //
+    const f32 softening = 1e-20;
     f32 px_i, py_i, pz_i;
 
     //
@@ -59,7 +57,8 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
             const f32 dx = p.x[j] - px_i;                                   // 1
             const f32 dy = p.y[j] - py_i;                                   // 2
             const f32 dz = p.z[j] - pz_i;                                   // 3
-            const f32 d_3_over_2 = pow((dx * dx) + (dy * dy) + (dz * dz) + softening, 1.5);  // 11
+            const f32 d_2 = (dx * dx) + (dy * dy) + (dz * dz) + softening;  // 9
+            const f32 d_3_over_2 = pow(d_2, 3.0 / 2.0);  // 11
 
             // Net force
             fx += dx / d_3_over_2;  // 13
@@ -69,14 +68,13 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
 
         //
         p.vx[i] += dt * fx;  // 19
-        p.x[i] += dt * p.vx[i];
-
         p.vy[i] += dt * fy;  // 21
-        p.y[i] += dt * p.vy[i];
-
         p.vz[i] += dt * fz;  // 23
-        p.z[i] += dt * p.vz[i];
     }
+
+    for (u64 i = 0; i < n; i++) p.x[i] += dt * p.vx[i];
+    for (u64 i = 0; i < n; i++) p.y[i] += dt * p.vy[i];
+    for (u64 i = 0; i < n; i++) p.z[i] += dt * p.vz[i];
 }
 
 //
