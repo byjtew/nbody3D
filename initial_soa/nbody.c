@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEBUG 0
 //
 typedef float f32;
 typedef double f64;
@@ -15,8 +16,24 @@ typedef struct particles_s {
     f32 *vx, *vy, *vz;
 } particles_t;
 
+void initialize_dumping() {
+    FILE *fp = fopen("results.dat", "wb");
+    fclose(fp);
+}
+
+void dump_values(particles_t p, u64 n) {
+    FILE *fp = fopen("results.dat", "ab");
+    for (u64 i = 0; i < n; i++)
+        fprintf(fp, "%f %f %f\n", p.x[i], p.y[i], p.z[i]);
+    // fprintf(fp, "%f %f %f %f %f %f\n", p.x[i], p.y[i], p.z[i], p.vx[i],
+    //         p.vy[i], p.vz[i]);
+    fclose(fp);
+}
+
 //
 void init(particles_t p, u64 n) {
+    srand(12);
+
     for (u64 i = 0; i < n; i++) {
         //
         u64 r1 = (u64)rand();
@@ -47,25 +64,44 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
         f32 fy = 0.0;
         f32 fz = 0.0;
 
+        if (DEBUG) printf("\npx_i: %f\n", p.x[i]);
+        if (DEBUG) printf("py_i: %f\n", p.y[i]);
+        if (DEBUG) printf("pz_i: %f\n", p.z[i]);
+
         // 23 floating-point operations
         for (u64 j = 0; j < n; j++) {
             // Newton's law
-            const f32 dx = p.x[j] - p.x[i];                                 // 1
-            const f32 dy = p.y[j] - p.y[i];                                 // 2
-            const f32 dz = p.z[j] - p.z[i];                                 // 3
+            if (DEBUG) printf("p.x[j]: %f\n", p.x[j]);
+            const f32 dx = p.x[j] - p.x[i];  // 1
+            if (DEBUG) printf("dx: %f\n", dx);
+            const f32 dy = p.y[j] - p.y[i];  // 2
+            if (DEBUG) printf("dy: %f\n", dy);
+            const f32 dz = p.z[j] - p.z[i];  // 3
+            if (DEBUG) printf("dz: %f\n", dz);
             const f32 d_2 = (dx * dx) + (dy * dy) + (dz * dz) + softening;  // 9
-            const f32 d_3_over_2 = pow(d_2, 3.0 / 2.0);  // 11
+            if (DEBUG) printf("d_2: %f\n", d_2);
+            const f32 sqrt_d_2 = sqrtf(d_2);
+            if (DEBUG) printf("sqrt_d_2: %f\n", sqrt_d_2);
+            const f32 d_3_over_2 = 1.0f / (d_2 * sqrt_d_2);  // 11
+            if (DEBUG) printf("d_3_over_2: %f\n", d_3_over_2);
 
+            if (DEBUG) printf("fx: %f\n", fx);
             // Net force
-            fx += dx / d_3_over_2;  // 13
-            fy += dy / d_3_over_2;  // 15
-            fz += dz / d_3_over_2;  // 17
+            fx += dx * d_3_over_2;  // 13
+            fy += dy * d_3_over_2;  // 15
+            fz += dz * d_3_over_2;  // 17
+
+            if (DEBUG) printf("fx: %f\n--\n", fx);
         }
 
         //
         p.vx[i] += dt * fx;  // 19
         p.vy[i] += dt * fy;  // 21
         p.vz[i] += dt * fz;  // 23
+
+        if (DEBUG) printf("p.vx[i]: %f\n", p.vx[i]);
+        if (DEBUG) printf("p.vy[i]: %f\n", p.vy[i]);
+        if (DEBUG) printf("p.vz[i]: %f\n", p.vz[i]);
     }
 
     // 3 floating-point operations
@@ -80,7 +116,7 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
 int main(int argc, char **argv) {
     //
     const u64 n = (argc > 1) ? atoll(argv[1]) : 16384;
-    const u64 steps = 10;
+    const u64 steps = (argc > 2) ? atoll(argv[2]) : (10);
     const f32 dt = 0.01;
 
     //
@@ -101,6 +137,8 @@ int main(int argc, char **argv) {
 
     //
     init(p, n);
+    initialize_dumping();
+    dump_values(p, n);
 
     const u64 s = sizeof(f32) * n * 6;
 
@@ -138,6 +176,7 @@ int main(int argc, char **argv) {
 
         fflush(stdout);
     }
+    dump_values(p, n);
 
     //
     rate /= (f64)(steps - warmup);

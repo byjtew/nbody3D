@@ -1,5 +1,7 @@
-all: nbody.g snb_nbody.g knl_nbody.g
+all: debug_nbody.g nbody.g snb_nbody.g knl_nbody.g
 
+debug_nbody.g: nbody.c
+	gcc -march=native -mtune=native -mno-avx -mno-aes -mfma -mavx -mavx2 -mavx512f -Ofast -ftree-vectorize -funroll-all-loops -fassociative-math -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
 nbody.g: nbody.c
 	gcc -march=native -mtune=native -fprofile-use=profile.gcc -fprofile-generate=profile.gcc -mno-avx -mno-aes -mfma -mavx -mavx2 -mavx512f -Ofast -ftree-vectorize -funroll-all-loops -fassociative-math -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
 snb_nbody.g: nbody.c
@@ -15,5 +17,5 @@ run_nbody.g: nbody.g
 	taskset -c 3 ./knl_nbody.g
 
 clean: 
-	rm -Rf *~ nbody.g snb_nbody.g knl_nbody.g nbody.i *.optrpt
+	rm -Rf *~ *.g nbody.i *.optrpt
 

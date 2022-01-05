@@ -1,10 +1,10 @@
 all: nbody.g
 
 nbody.g: nbody.c
-	gcc -march=native -mavx2 -Ofast -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
+	gcc -march=native -mavx2 -O3 -ftree-vectorize -funroll-all-loops -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
 
 nbody.i: nbody.c
-	icc -xhost -Ofast -qopt-report $< -o $@ -qmkl -qopenmp
+	icc -xhost -O3 -qopt-report $< -o $@ -qmkl -qopenmp
 
 run_nbody.g: nbody.g
 	taskset -c 3 ./nbody.g

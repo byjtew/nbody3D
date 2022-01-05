@@ -1,5 +1,6 @@
 //
 #include <immintrin.h>
+#include <execinfo.h>
 #include <math.h>
 #include <omp.h>
 #include <stdio.h>
@@ -15,6 +16,21 @@ const f32 softening = 1e-20;
 
 pd_float one_vector, softening_pd_vector;
 
+void print_trace() {
+    void *array[10];
+    char **strings;
+    int size, i;
+
+    size = backtrace(array, 10);
+    strings = backtrace_symbols(array, size);
+    if (strings != NULL) {
+        printf("Obtained %d stack frames.\n", size);
+        for (i = 0; i < size; i++) printf("%s\n", strings[i]);
+    }
+
+    free(strings);
+}
+
 //
 typedef struct particles_s {
     pd_float *x, *y, *z;
@@ -22,7 +38,9 @@ typedef struct particles_s {
 } particles_t;
 
 static inline void reciprocal_sqrt(pd_float *num) {
+    print_trace();
     *num = _mm512_rsqrt28_ps(*num);
+    print_trace();
 }
 
 static inline pd_float createpd_float_from_ptr(float *values) {
