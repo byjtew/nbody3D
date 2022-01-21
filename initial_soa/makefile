@@ -1,7 +1,7 @@
 all: nbody.g
 
 nbody.g: nbody.c
-	gcc -march=native -mavx2 -O3 -ftree-vectorize -funroll-all-loops -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
+	gcc -march=native -mavx2 -Ofast -ftree-vectorize -funroll-all-loops -fopt-info-all=nbody.gcc.optrpt $< -o $@ -lm -fopenmp
 
 nbody.i: nbody.c
 	icc -xhost -O3 -qopt-report $< -o $@ -qmkl -qopenmp
