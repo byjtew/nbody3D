@@ -36,6 +36,15 @@ void init(particle_t *p, u64 n) {
     }
 }
 
+static inline f32 fisqrt(f32 value) {
+    f32 x2 = value * 0.5F;
+    f32 y = value;
+    u64 i = *(u64 *)&y;           
+    i = 0x5f3759df - (i >> 1); 
+    y = *(f32 *)&i;
+    return y * (1.5F - (x2 * y * y)); 
+}
+
 //
 void move_particles(particle_t *p, const f32 dt, u64 n) {
     //
@@ -44,9 +53,9 @@ void move_particles(particle_t *p, const f32 dt, u64 n) {
     //
     for (u64 i = 0; i < n; i++) {
         //
-        f32 fx = 0.0;
-        f32 fy = 0.0;
-        f32 fz = 0.0;
+        f32 fx = 0.0f;
+        f32 fy = 0.0f;
+        f32 fz = 0.0f;
 
         // 23 floating-point operations
         for (u64 j = 0; j < n; j++) {
@@ -55,7 +64,8 @@ void move_particles(particle_t *p, const f32 dt, u64 n) {
             const f32 dy = p[j].y - p[i].y;                                 // 2
             const f32 dz = p[j].z - p[i].z;                                 // 3
             const f32 d_2 = (dx * dx) + (dy * dy) + (dz * dz) + softening;  // 9
-            const f32 d_3_over_2 = pow(d_2, 3.0 / 2.0);  // 11
+
+            const f32 d_3_over_2 = (1.0f / d_2) * fisqrt(d_2);  // 11
 
             // Net force
             fx += dx / d_3_over_2;  // 13
@@ -110,6 +120,7 @@ int main(int argc, char **argv) {
     for (u64 i = 0; i < steps; i++) {
         // Measure
         const f64 start = omp_get_wtime();
+#pragma forceinline recursive
 
         move_particles(p, dt, n);
 

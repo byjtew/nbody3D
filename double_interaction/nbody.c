@@ -15,7 +15,6 @@ typedef struct particles_s {
     f32 *vx, *vy, *vz;
 } particles_t;
 
-
 static inline f32 randrealf(int use_sign) {
     u64 r1 = (u64)rand();
     u64 r2 = (u64)rand();
@@ -34,28 +33,42 @@ void init(particles_t p, u64 n) {
     for (u64 i = 0; i < n; i++) p.vz[i] = randrealf(1);  // randrealf(0);
 }
 
+#define BLOCK_FACTOR 2048 * 2
 //
-void move_particles(particles_t p, const f32 dt, u64 n) {
-    const f32 softening = 1e-20;
+static inline void move_particles(particles_t p, const f32 dt, const u64 n) {
+    //
+    const f32 softening = 1e-20f;
+    f32 d_dx, d_dy, d_dz;
 
+#pragma unroll
     for (u64 i = 0; i < n; i++) {
-        f32 fx = 0.0;
-        f32 fy = 0.0;
-        f32 fz = 0.0;
-
-        // 23 floating-point operations
-        for (u64 j = 0; j < n; j++) {
+        //
+        f32 fx = 0.0f;
+        f32 fy = 0.0f;
+        f32 fz = 0.0f;
+#pragma unroll
+        for (u64 j = i + 1; j < n; j++) {
             // Newton's law
-            const f32 dx = p.x[j] - p.x[i];  // 1
-            const f32 dy = p.y[j] - p.y[i];  // 2
-            const f32 dz = p.z[j] - p.z[i];  // 3
-            const f32 d_2 = (dx * dx) + (dy * dy) + (dz * dz) + softening;  // 9
-            const f32 d_3_over_2 = pow(d_2, 3.0 / 2.0);  // 11
+            const f32 dx = p.x[j] - p.x[i];
+            const f32 dy = p.y[j] - p.y[i];
+            const f32 dz = p.z[j] - p.z[i];
+
+            f32 d_2 =
+                1.0f / sqrtf((dx * dx) + (dy * dy) + (dz * dz) + softening);
+            f32 d_3_over_2 = d_2 * d_2 * d_2;
+
+            d_dx = dt * dx * d_3_over_2;
+            d_dy = dt * dy * d_3_over_2;
+            d_dz = dt * dz * d_3_over_2;
+
+            p.vx[j] -= d_dx;
+            p.vy[j] -= d_dy;
+            p.vz[j] -= d_dz;
 
             // Net force
-            fx += dx * d_3_over_2;  // 13
-            fy += dy * d_3_over_2;  // 15
-            fz += dz * d_3_over_2;  // 17
+            fx += d_dx;
+            fy += d_dy;
+            fz += d_dz;
         }
 
         //
@@ -64,6 +77,7 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
         p.vz[i] += dt * fz;  // 23
     }
 
+#pragma unroll
     for (u64 i = 0; i < n; i++) {
         p.x[i] += dt * p.vx[i];
         p.y[i] += dt * p.vy[i];
@@ -84,20 +98,21 @@ int main(int argc, char **argv) {
     // Steps to skip for warm up
     const u64 warmup = 3;
 
+    const u64 alignment = 64;
     //
     particles_t p;
-    p.x = malloc(sizeof(f32) * n);
-    p.y = malloc(sizeof(f32) * n);
-    p.z = malloc(sizeof(f32) * n);
+    p.x = aligned_alloc(alignment, sizeof(f32) * n);
+    p.y = aligned_alloc(alignment, sizeof(f32) * n);
+    p.z = aligned_alloc(alignment, sizeof(f32) * n);
 
-    p.vx = malloc(sizeof(f32) * n);
-    p.vy = malloc(sizeof(f32) * n);
-    p.vz = malloc(sizeof(f32) * n);
+    p.vx = aligned_alloc(alignment, sizeof(f32) * n);
+    p.vy = aligned_alloc(alignment, sizeof(f32) * n);
+    p.vz = aligned_alloc(alignment, sizeof(f32) * n);
 
     //
     init(p, n);
 
-        const u64 s = sizeof(f32) * n * 6;
+    const u64 s = sizeof(f32) * n * 6;
 
     printf("\n\033[1mTotal memory size:\033[0m %llu B, %llu KiB, %llu MiB\n\n",
            s, s >> 10, s >> 20);
@@ -112,6 +127,7 @@ int main(int argc, char **argv) {
         // Measure
         const f64 start = omp_get_wtime();
 
+#pragma forceinline recursive
         move_particles(p, dt, n);
 
         const f64 end = omp_get_wtime();
@@ -120,7 +136,7 @@ int main(int argc, char **argv) {
         const f32 h1 = (f32)(n) * (f32)(n - 1);
 
         // GFLOPS
-        const f32 h2 = (23.0 * h1 + 3.0 * (f32)n) * 1e-9;
+        const f32 h2 = ((23.0 + 1.0 + 6.0) * h1 + 3.0 * (f32)n) * 1e-9;
 
         if (i >= warmup) {
             total_time += (end - start);
