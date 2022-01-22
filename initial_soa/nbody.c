@@ -36,12 +36,9 @@ void init(particles_t p, u64 n) {
 
 //
 void move_particles(particles_t p, const f32 dt, u64 n) {
-    //
     const f32 softening = 1e-20;
 
-    //
     for (u64 i = 0; i < n; i++) {
-        //
         f32 fx = 0.0;
         f32 fy = 0.0;
         f32 fz = 0.0;
@@ -67,7 +64,6 @@ void move_particles(particles_t p, const f32 dt, u64 n) {
         p.vz[i] += dt * fz;  // 23
     }
 
-    // 3 floating-point operations
     for (u64 i = 0; i < n; i++) {
         p.x[i] += dt * p.vx[i];
         p.y[i] += dt * p.vy[i];
